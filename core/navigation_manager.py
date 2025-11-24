@@ -9,9 +9,9 @@ class NavigationManager:
         self.session_manager = SessionManager()
         self.jobs_page = JobsPage(driver)
     
-    def go_to_jobs_directly(self):
-        """Flujo mejorado que maneja login en página de jobs de forma segura"""
-        logger.system("Iniciando acceso directo a Jobs...")
+    def go_to_jobs_and_search(self):
+        """Flujo completo: va a jobs, maneja login y realiza búsqueda"""
+        logger.system("Iniciando acceso a Jobs con búsqueda...")
         
         # 1. Cargar cookies si existen
         cookies_loaded = False
@@ -25,9 +25,16 @@ class NavigationManager:
         # 3. Verificar estado de la página de forma segura
         if self.jobs_page.is_jobs_page_loaded():
             logger.success("Acceso directo a Jobs exitoso!")
-            return True
+            
+            # 4. Realizar búsqueda de trabajo
+            if self.jobs_page.search_job():
+                logger.success("Búsqueda de trabajo completada exitosamente!")
+                return True
+            else:
+                logger.error("Búsqueda de trabajo falló")
+                return False
         
-        # 4. Si requiere login, determinar el tipo
+        # 5. Si requiere login, determinar el tipo
         if self.jobs_page.is_login_required():
             logger.warning("Login requerido detectado")
             
@@ -41,7 +48,14 @@ class NavigationManager:
                 # Verificar que jobs cargó después del login
                 if self.jobs_page.wait_for_jobs_after_login():
                     logger.success("Login exitoso y Jobs cargado!")
-                    return True
+                    
+                    # 6. Realizar búsqueda de trabajo después del login
+                    if self.jobs_page.search_job():
+                        logger.success("Búsqueda de trabajo completada exitosamente!")
+                        return True
+                    else:
+                        logger.error("Búsqueda de trabajo falló después del login")
+                        return False
                 else:
                     logger.error("Login aparentemente exitoso pero Jobs no cargó")
                     return False
@@ -49,14 +63,14 @@ class NavigationManager:
                 logger.error("Login falló")
                 return False
         
-        # 5. Si llegamos aquí, no pudimos determinar el estado
+        # 7. Si llegamos aquí, no pudimos determinar el estado
         logger.warning("No se pudo determinar el estado de autenticación")
         logger.info(f"URL actual: {self.driver.current_url}")
         
         # Intentar una verificación final
         if "jobs" in self.driver.current_url.lower():
-            logger.info("Estamos en Jobs pero no se pudo verificar el estado, continuando...")
-            return True
+            logger.info("Estamos en Jobs pero no se pudo verificar el estado, intentando búsqueda...")
+            return self.jobs_page.search_job()
         else:
             logger.error("No estamos en la página de Jobs")
             return False

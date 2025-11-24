@@ -12,8 +12,11 @@ class Settings:
     EMAIL = os.getenv("LINKEDIN_EMAIL")
     PASSWORD = os.getenv("LINKEDIN_PASSWORD")
     
+    # Nueva configuración de búsqueda de trabajo
+    JOB_SEARCH_QUERY = os.getenv("JOB_SEARCH_QUERY", "Python Developer")
+    
     # Logger settings
-    LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG").upper()  # DEBUG, INFO, WARNING, ERROR
+    LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG").upper()
     LOG_SHOW_TIME = os.getenv("LOG_SHOW_TIME", "True").lower() == "true"
     LOG_SHOW_DAY = os.getenv("LOG_SHOW_DAY", "False").lower() == "true"
     LOG_SHOW_DATE = os.getenv("LOG_SHOW_DATE", "False").lower() == "true"

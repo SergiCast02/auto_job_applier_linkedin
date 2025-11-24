@@ -12,48 +12,96 @@ class JobsPage(BasePage):
         self.EMAIL_SELECTOR = '[name="session_key"]'
         self.PASSWORD_SELECTOR = '[name="session_password"]'
         self.LOGIN_BUTTON_SELECTOR = '[data-id="sign-in-form__submit-btn"][type="submit"]'
-        self.JOBS_INDICATOR = ".jobs-search-two-pane__wrapper"
+        self.JOBS_INDICATOR = '[placeholder="Title, skill or Company"]'
         self.LOGIN_FORM_SELECTOR = 'form[data-id="sign-in-form"]'
+        self.SEARCH_INPUT_SELECTOR = '[placeholder="Title, skill or Company"]'
+        self.SEARCH_BUTTON_SELECTOR = '.jobs-search-box__submit-button'
     
     def navigate_to_jobs(self):
         logger.system("Navegando a LinkedIn Jobs...")
         return self.navigate_to("https://www.linkedin.com/jobs/")
     
     def is_jobs_page_loaded(self):
-        """Verifica si jobs cargó correctamente (sin formulario de login)"""
+        """VERIFICACIÓN: Comprueba que la página de Jobs cargó correctamente buscando elementos"""
+        logger.debug("Iniciando VERIFICACIÓN de página de Jobs...")
         try:
             # Primero verificar que estamos en la URL correcta
             if "jobs" not in self.get_current_url().lower():
-                logger.debug("No estamos en la URL de jobs")
+                logger.debug("❌ VERIFICACIÓN FALLIDA: No estamos en la URL de jobs")
                 return False
             
             # Verificar si hay formulario de login visible
             if self.is_login_form_present():
-                logger.warning("Jobs cargó pero muestra formulario de login")
+                logger.warning("❌ VERIFICACIÓN FALLIDA: Jobs cargó pero muestra formulario de login")
                 return False
             
-            # Verificar elementos de jobs de forma segura
+            # VERIFICACIÓN PRINCIPAL: Buscar el elemento indicador de Jobs
             jobs_element = self.safe_find_element(
                 self.JOBS_INDICATOR, 
-                "Indicador de página de Jobs"
+                "Indicador de página de Jobs (lupa de búsqueda)"
             )
             
             if jobs_element:
-                logger.success("Jobs cargado correctamente (sin login requerido)")
+                logger.success("✅ VERIFICACIÓN EXITOSA: Jobs cargado correctamente (elemento encontrado)")
                 return True
             else:
-                logger.debug("Indicador de Jobs no encontrado")
+                logger.debug("❌ VERIFICACIÓN FALLIDA: Indicador de Jobs no encontrado")
                 return False
             
         except Exception as e:
-            logger.debug(f"Error verificando carga de Jobs: {e}")
+            logger.debug(f"❌ VERIFICACIÓN FALLIDA: Error verificando carga de Jobs: {e}")
+            return False
+    
+    def search_job(self, job_title=None):
+        """Realiza búsqueda de trabajo en el campo de búsqueda"""
+        job_title = job_title or settings.JOB_SEARCH_QUERY
+        logger.system(f"Realizando búsqueda de trabajo: '{job_title}'")
+        
+        # Buscar el campo de búsqueda
+        search_input = self.safe_find_element(
+            self.SEARCH_INPUT_SELECTOR,
+            "Campo de búsqueda de trabajos"
+        )
+        
+        if not search_input:
+            logger.error("No se pudo encontrar el campo de búsqueda")
+            return False
+        
+        try:
+            # Limpiar el campo y escribir la búsqueda
+            search_input.clear()
+            search_input.send_keys(job_title)
+            logger.success(f"Búsqueda ingresada: '{job_title}'")
+            
+            # Intentar hacer clic en el botón de búsqueda si existe
+            search_button = self.safe_find_element(
+                self.SEARCH_BUTTON_SELECTOR,
+                "Botón de búsqueda"
+            )
+            
+            if search_button:
+                search_button.click()
+                logger.success("Búsqueda enviada")
+            else:
+                # Si no hay botón, presionar Enter
+                from selenium.webdriver.common.keys import Keys
+                search_input.send_keys(Keys.RETURN)
+                logger.success("Búsqueda enviada con Enter")
+            
+            # Esperar a que los resultados carguen
+            self.wait_for_dom_ready()
+            logger.success("Resultados de búsqueda cargados")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error realizando búsqueda: {e}")
             return False
     
     def is_login_form_present(self):
         """Detecta si el formulario de login está presente en la página de jobs"""
         # Verificar formulario de login
         if self.is_element_present(self.LOGIN_FORM_SELECTOR):
-            logger.debug("Formulario de login detectado por selector .login__form")
+            logger.debug("Formulario de login detectado")
             return True
         
         # Verificar campos de email/password

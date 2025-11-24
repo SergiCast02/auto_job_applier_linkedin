@@ -7,20 +7,21 @@ def main():
     driver_manager = WebDriverManager()
     
     try:
-        logger.system("INICIANDO LINKEDIN JOBS - DETECCIÓN MEJORADA")
+        logger.system("INICIANDO LINKEDIN JOBS - BÚSQUEDA AUTOMÁTICA")
         logger.debug(f"Configuración LOG_LEVEL: {settings.LOG_LEVEL}")
+        logger.info(f"Búsqueda configurada: '{settings.JOB_SEARCH_QUERY}'")
         
         # Configurar driver
         driver = driver_manager.setup_driver()
         
-        # Navegación directa a jobs
+        # Navegación y búsqueda
         nav_manager = NavigationManager(driver)
         
-        if nav_manager.go_to_jobs_directly():
-            logger.success("MISIÓN CUMPLIDA: LinkedIn Jobs cargado correctamente")
+        if nav_manager.go_to_jobs_and_search():
+            logger.success("MISIÓN CUMPLIDA: Búsqueda de trabajo completada")
             logger.info(f"URL final: {driver.current_url}")
         else:
-            logger.error("No se pudo cargar LinkedIn Jobs")
+            logger.error("No se pudo completar la búsqueda de trabajo")
         
     except Exception as e:
         logger.error(f"Error crítico: {e}")
