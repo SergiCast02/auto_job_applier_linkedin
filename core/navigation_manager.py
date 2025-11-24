@@ -4,131 +4,138 @@ from config.settings import settings
 from utils.logger import logger
 
 class NavigationManager:
+    """
+    Gestor de navegación con lógica simplificada y logs bonitos:
+    
+    1. Cargar https://www.linkedin.com/jobs/
+    2. Si NO hay formulario de login → Buscar empleo
+    3. Si SÍ hay formulario de login → Loguearse y volver a /jobs/
+    """
+    
     def __init__(self, driver):
         self.driver = driver
         self.session_manager = SessionManager()
         self.jobs_page = JobsPage(driver)
     
     def go_to_jobs_and_search(self):
-        """Flujo completo: va a jobs, maneja login y realiza búsqueda"""
-        logger.system("Iniciando acceso a Jobs con búsqueda...")
+        """
+        Flujo simplificado con logs diferenciados:
+        1. Ir a https://www.linkedin.com/jobs/
+        2. Verificar si hay formulario de login
+        3. Si NO hay formulario → Buscar
+        4. Si SÍ hay formulario → Login y volver a intentar
+        """
         
-        # 1. Cargar cookies si existen
-        cookies_loaded = False
-        if self.session_manager.cookies_exist():
-            logger.debug("Cookies encontradas, cargando...")
-            cookies_loaded = self.session_manager.load_cookies(self.driver)
+        logger.section("🚀 INICIANDO PROCESO DE BÚSQUEDA EN LINKEDIN JOBS")
+        logger.info(f"Búsqueda configurada: '{settings.JOB_SEARCH_QUERY}'")
+        logger.separator()
         
-        # 2. Ir directamente a jobs
+        # PASO 1: Cargar cookies y navegar
+        logger.section("📂 PASO 1: CARGANDO SESIÓN Y NAVEGANDO")
+        self._load_cookies_if_exist()
         self.jobs_page.navigate_to_jobs()
+        logger.separator()
         
-        # 3. Verificar estado de la página de forma segura
-        if self.jobs_page.is_jobs_page_loaded():
-            logger.success("Acceso directo a Jobs exitoso!")
+        # PASO 2: Verificar si hay formulario de login
+        logger.section("🔍 PASO 2: VERIFICANDO ESTADO DE AUTENTICACIÓN")
+        has_login_form = self.jobs_page.is_login_form_present()
+        
+        if not has_login_form:
+            # NO hay formulario → Hacer búsqueda directamente
+            logger.success("✓ Sesión activa - No se requiere login")
+            logger.separator()
             
-            # 4. Realizar búsqueda de trabajo
-            if self.jobs_page.search_job():
-                logger.success("Búsqueda de trabajo completada exitosamente!")
-                return True
+            logger.section("🔎 PASO 3: REALIZANDO BÚSQUEDA DE EMPLEO")
+            success = self.jobs_page.search_job()
+            logger.separator()
+            
+            if success:
+                logger.success("🎉 BÚSQUEDA COMPLETADA EXITOSAMENTE")
             else:
-                logger.error("Búsqueda de trabajo falló")
-                return False
-        
-        # 5. Si requiere login, determinar el tipo
-        if self.jobs_page.is_login_required():
-            logger.warning("Login requerido detectado")
+                logger.error("❌ ERROR: No se pudo completar la búsqueda")
             
-            # Eliminar cookies si estaban presentes pero expiraron
-            if cookies_loaded:
-                logger.debug("Cookies expiradas, eliminando...")
-                self.session_manager.delete_cookies()
-            
-            # Intentar login
-            if self._handle_login():
-                # Verificar que jobs cargó después del login
-                if self.jobs_page.wait_for_jobs_after_login():
-                    logger.success("Login exitoso y Jobs cargado!")
-                    
-                    # 6. Realizar búsqueda de trabajo después del login
-                    if self.jobs_page.search_job():
-                        logger.success("Búsqueda de trabajo completada exitosamente!")
-                        return True
-                    else:
-                        logger.error("Búsqueda de trabajo falló después del login")
-                        return False
-                else:
-                    logger.error("Login aparentemente exitoso pero Jobs no cargó")
-                    return False
-            else:
-                logger.error("Login falló")
-                return False
+            return success
         
-        # 7. Si llegamos aquí, no pudimos determinar el estado
-        logger.warning("No se pudo determinar el estado de autenticación")
-        logger.info(f"URL actual: {self.driver.current_url}")
+        # SÍ hay formulario → Hacer login
+        logger.info("⚠️  Se requiere autenticación")
+        logger.separator()
         
-        # Intentar una verificación final
-        if "jobs" in self.driver.current_url.lower():
-            logger.info("Estamos en Jobs pero no se pudo verificar el estado, intentando búsqueda...")
-            return self.jobs_page.search_job()
-        else:
-            logger.error("No estamos en la página de Jobs")
+        # PASO 3: Realizar login
+        logger.section("🔐 PASO 3: INICIANDO SESIÓN")
+        if not self.jobs_page.perform_login(settings.EMAIL, settings.PASSWORD):
+            logger.error("❌ ERROR: Fallo al enviar credenciales")
             return False
-    
-    def _handle_login(self):
-        """Maneja el login según el tipo de página"""
-        current_url = self.driver.current_url.lower()
         
-        # Si estamos en página de login específica
-        if any(indicator in current_url for indicator in ["login", "signin", "authwall"]):
-            logger.info("Redirigiendo a página de login específica...")
-            return self._quick_login_standard()
-        
-        # Si estamos en /jobs con formulario de login
-        elif "jobs" in current_url and self.jobs_page.is_login_form_present():
-            logger.info("Realizando login desde página de Jobs...")
-            return self._quick_login_from_jobs()
-        
-        else:
-            logger.error("Tipo de login no reconocido")
+        # Esperar a que se complete el login
+        if not self._wait_for_login_redirect():
+            logger.error("❌ ERROR: Login no completado o credenciales incorrectas")
             return False
-    
-    def _quick_login_standard(self):
-        """Login desde página de login estándar"""
-        self.jobs_page.navigate_to("https://www.linkedin.com/login")
         
-        if self.jobs_page.perform_login_from_jobs(settings.EMAIL, settings.PASSWORD):
-            return self._wait_for_login_redirect()
-        return False
+        logger.success("✓ Login exitoso - Sesión establecida")
+        logger.separator()
+        
+        # PASO 4: Volver a /jobs/ después del login
+        logger.section("🔄 PASO 4: VOLVIENDO A LINKEDIN JOBS")
+        self.jobs_page.navigate_to_jobs()
+        logger.separator()
+        
+        # PASO 5: Verificar que ya no haya formulario
+        logger.section("✅ PASO 5: VERIFICANDO AUTENTICACIÓN")
+        if self.jobs_page.is_login_form_present():
+            # Login falló, todavía pide credenciales
+            logger.error("❌ ERROR: Autenticación fallida - Formulario aún presente")
+            return False
+        
+        logger.success("✓ Autenticación verificada")
+        logger.separator()
+        
+        # PASO 6: Realizar búsqueda
+        logger.section("🔎 PASO 6: REALIZANDO BÚSQUEDA DE EMPLEO")
+        success = self.jobs_page.search_job()
+        logger.separator()
+        
+        if success:
+            logger.success("🎉 BÚSQUEDA COMPLETADA EXITOSAMENTE")
+        else:
+            logger.error("❌ ERROR: No se pudo completar la búsqueda")
+        
+        return success
     
-    def _quick_login_from_jobs(self):
-        """Login directamente desde la página de jobs"""
-        if self.jobs_page.perform_login_from_jobs(settings.EMAIL, settings.PASSWORD):
-            return self._wait_for_login_redirect()
+    # ==================== MÉTODOS AUXILIARES ====================
+    
+    def _load_cookies_if_exist(self):
+        """Carga cookies si existen (silencioso)"""
+        if self.session_manager.cookies_exist():
+            logger.info("📝 Cargando cookies de sesión anterior...")
+            return self.session_manager.load_cookies(self.driver)
+        else:
+            logger.info("📝 No se encontraron cookies - Primera ejecución")
         return False
     
     def _wait_for_login_redirect(self):
-        """Espera inteligente a la redirección después del login"""
+        """
+        Espera a que se complete el login y redirija.
+        Verifica que ya no estemos en página de login.
+        """
         import time
         start_time = time.time()
         
-        logger.debug("Esperando redirección después del login...")
+        logger.info("⏳ Esperando redirección después del login...")
         
-        while time.time() - start_time < 8:
+        while time.time() - start_time < 10:
             current_url = self.driver.current_url.lower()
             
-            # Si ya no estamos en página de login
+            # Si ya no estamos en página de login, éxito
             if "login" not in current_url and "signin" not in current_url:
+                # Guardar cookies para próxima vez
+                logger.info("💾 Guardando cookies de sesión...")
                 self.session_manager.save_cookies(self.driver)
-                logger.debug("Redirección después del login detectada")
                 return True
             
-            # Si todavía hay formulario de login después de un tiempo, posible fallo
+            # Si después de 3 segundos todavía hay formulario, falló
             if time.time() - start_time > 3 and self.jobs_page.is_login_form_present():
-                logger.warning("Formulario de login aún presente después de 3 segundos")
                 return False
             
-            time.sleep(0.3)
+            time.sleep(0.5)
         
-        logger.warning("Timeout esperando redirección después del login")
         return False
