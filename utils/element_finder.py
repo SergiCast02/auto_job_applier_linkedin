@@ -8,10 +8,13 @@ class ElementFinder:
     """
     Clase para encontrar y accionar elementos con logging bonito y diferenciado.
     
+    IMPORTANTE: TODAS las búsquedas generan logs, sin excepciones.
+    
     Logs generados:
     1. 🔎 BUSCANDO ELEMENTO
-    2. ✓ ELEMENTO ENCONTRADO
-    3. Acciones diferenciadas:
+    2. ✓ ELEMENTO ENCONTRADO (si lo encuentra)
+    3. ❌ ELEMENTO NO ENCONTRADO (si no lo encuentra)
+    4. Acciones diferenciadas:
        - 👆 ACCIÓN → CLICK
        - ⌨️ ACCIÓN → ESCRIBIR
        - 🧹 ACCIÓN → LIMPIAR
@@ -24,9 +27,10 @@ class ElementFinder:
     def find_element(self, selector, timeout=3, description=""):
         """
         Encuentra un elemento de forma segura.
-        Logs: 
+        Logs SIEMPRE generados: 
         1. 🔎 BUSCANDO ELEMENTO
         2. ✓ ELEMENTO ENCONTRADO (si lo encuentra)
+        3. ❌ ELEMENTO NO ENCONTRADO (si no lo encuentra)
         """
         logger.searching_element(selector, description)
         try:
@@ -36,17 +40,19 @@ class ElementFinder:
             logger.element_found(selector, description)
             return element
         except TimeoutException:
-            # No encontrado - no se registra
+            logger.element_not_found(selector, description)
             return None
         except Exception as e:
+            logger.element_not_found(selector, description)
             return None
     
     def find_clickable(self, selector, timeout=5, description=""):
         """
         Encuentra un elemento clickable de forma segura.
-        Logs:
+        Logs SIEMPRE generados:
         1. 🔎 BUSCANDO ELEMENTO
         2. ✓ ELEMENTO ENCONTRADO (si lo encuentra)
+        3. ❌ ELEMENTO NO ENCONTRADO (si no lo encuentra)
         """
         logger.searching_element(selector, f"{description} (clickable)")
         try:
@@ -56,16 +62,19 @@ class ElementFinder:
             logger.element_found(selector, f"{description} (clickable)")
             return element
         except TimeoutException:
+            logger.element_not_found(selector, f"{description} (clickable)")
             return None
         except Exception as e:
+            logger.element_not_found(selector, f"{description} (clickable)")
             return None
     
     def find_multiple(self, selector, timeout=3, description=""):
         """
         Encuentra múltiples elementos de forma segura.
-        Logs:
+        Logs SIEMPRE generados:
         1. 🔎 BUSCANDO ELEMENTO
         2. ✓ ELEMENTO ENCONTRADO (si los encuentra)
+        3. ❌ ELEMENTO NO ENCONTRADO (si no encuentra ninguno)
         """
         logger.searching_element(selector, f"{description} (múltiples)")
         try:
@@ -75,21 +84,32 @@ class ElementFinder:
             logger.element_found(selector, f"{description} (encontrados: {len(elements)})")
             return elements
         except TimeoutException:
+            logger.element_not_found(selector, f"{description} (múltiples)")
             return []
         except Exception as e:
+            logger.element_not_found(selector, f"{description} (múltiples)")
             return []
     
-    def is_element_present(self, selector, timeout=2):
+    def is_element_present(self, selector, timeout=2, description=""):
         """
-        Verifica si un elemento está presente SIN logging.
-        Método auxiliar interno.
+        Verifica si un elemento está presente.
+        AHORA CON LOGGING - ya no es silencioso.
+        
+        Logs generados:
+        1. 🔎 BUSCANDO ELEMENTO
+        2. ✓ ELEMENTO ENCONTRADO / ❌ ELEMENTO NO ENCONTRADO
+        
+        Retorna: True si existe, False si no existe
         """
+        logger.searching_element(selector, f"{description} (verificación)")
         try:
             WebDriverWait(self.driver, timeout).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, selector))
             )
+            logger.element_found(selector, f"{description} (verificación)")
             return True
         except:
+            logger.element_not_found(selector, f"{description} (verificación)")
             return False
     
     def safe_click(self, selector, description="", timeout=5):
@@ -98,8 +118,8 @@ class ElementFinder:
         
         Logs:
         1. 🔎 BUSCANDO ELEMENTO
-        2. ✓ ELEMENTO ENCONTRADO
-        3. 👆 ACCIÓN → CLICK
+        2. ✓ ELEMENTO ENCONTRADO / ❌ ELEMENTO NO ENCONTRADO
+        3. 👆 ACCIÓN → CLICK (solo si se encontró)
         """
         element = self.find_clickable(selector, timeout, description)
         if element:
@@ -117,7 +137,7 @@ class ElementFinder:
         
         Logs:
         1. 🔎 BUSCANDO ELEMENTO
-        2. ✓ ELEMENTO ENCONTRADO
+        2. ✓ ELEMENTO ENCONTRADO / ❌ ELEMENTO NO ENCONTRADO
         3. 🧹 ACCIÓN → LIMPIAR (si clear_first=True)
         4. ⌨️ ACCIÓN → ESCRIBIR
         """
@@ -141,8 +161,8 @@ class ElementFinder:
         
         Logs:
         1. 🔎 BUSCANDO ELEMENTO
-        2. ✓ ELEMENTO ENCONTRADO
-        3. 📤 ACCIÓN → SUBMIT
+        2. ✓ ELEMENTO ENCONTRADO / ❌ ELEMENTO NO ENCONTRADO
+        3. 📤 ACCIÓN → SUBMIT (solo si se encontró)
         """
         element = self.find_element(selector, timeout, description)
         if element:

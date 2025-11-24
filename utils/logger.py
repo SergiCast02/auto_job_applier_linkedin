@@ -14,7 +14,8 @@ class Logger:
     2. URL de la pagina
     3. BUSCANDO ELEMENTO
     4. ELEMENTO ENCONTRADO
-    5. ELEMENTO ACCIONADO (con tipos diferenciados)
+    5. ELEMENTO NO ENCONTRADO (nuevo)
+    6. ELEMENTO ACCIONADO (con tipos diferenciados)
     """
     
     def __init__(self):
@@ -30,6 +31,7 @@ class Logger:
             'URL': Fore.CYAN,
             'SEARCHING': Fore.LIGHTYELLOW_EX,
             'FOUND': Fore.YELLOW,
+            'NOT_FOUND': Fore.LIGHTBLACK_EX,  # Nuevo color para "no encontrado"
             'ACTION_CLICK': Fore.MAGENTA,
             'ACTION_SEND': Fore.LIGHTBLUE_EX,
             'ACTION_OTHER': Fore.LIGHTMAGENTA_EX,
@@ -91,6 +93,11 @@ class Logger:
         """✅ ELEMENTO ENCONTRADO"""
         desc = f" - {description}" if description else ""
         self._print_log('✓', self.colors['FOUND'], f"ELEMENTO ENCONTRADO: {selector}{desc}")
+    
+    def element_not_found(self, selector, description=""):
+        """✅ ELEMENTO NO ENCONTRADO (nuevo método)"""
+        desc = f" - {description}" if description else ""
+        self._print_log('✗', self.colors['NOT_FOUND'], f"ELEMENTO NO ENCONTRADO: {selector}{desc}")
     
     # ==================== ACCIONES DIFERENCIADAS ====================
     
