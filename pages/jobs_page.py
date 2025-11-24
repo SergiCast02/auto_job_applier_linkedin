@@ -21,7 +21,6 @@ class JobsPage(BasePage):
         self.JOBS_INDICATOR = '[placeholder="Title, skill or Company"]'
         self.LOGIN_FORM_SELECTOR = 'form[data-id="sign-in-form"]'
         self.SEARCH_INPUT_SELECTOR = '[placeholder="Title, skill or Company"]'
-        self.SEARCH_BUTTON_SELECTOR = '.jobs-search-box__submit-button'
     
     # ==================== PASO 1: NAVEGACIÓN ====================
     
@@ -135,19 +134,9 @@ class JobsPage(BasePage):
             search_input.send_keys(job_title)
             logger.element_action("Campo de búsqueda de trabajos", f"send_keys: {job_title}")
             
-            # Intentar hacer clic en el botón de búsqueda
-            search_button = self.safe_find_element(
-                self.SEARCH_BUTTON_SELECTOR,
-                "Botón de búsqueda"
-            )
-            
-            if search_button:
-                search_button.click()
-                logger.element_action("Botón de búsqueda", "click")
-            else:
-                # Si no hay botón, presionar Enter
-                search_input.send_keys(Keys.RETURN)
-                logger.element_action("Campo de búsqueda de trabajos", "send_keys: ENTER")
+            # presionar Enter
+            search_input.send_keys(Keys.RETURN)
+            logger.element_action("Campo de búsqueda de trabajos", "send_keys: ENTER")
             
             # Esperar a que los resultados carguen
             self.wait_for_dom_ready()
